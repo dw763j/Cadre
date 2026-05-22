@@ -6,6 +6,9 @@ This project studies **co-evolution of code changes and Dockerfiles**: when a co
 
 ---
 
+> In the code repo, the method is named as "dofix", which is the implementation of "Cadre"
+
+
 ## Workflow Overview
 
 ```
