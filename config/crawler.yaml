@@ -1,0 +1,35 @@
+# Example Crawler Configuration
+
+# Star ranges for repository filtering
+min_stars: 100        # Minimum number of stars required
+
+# Repository requirements
+languages:               # List of languages to filter by (empty means all), provide languages to prevent non-code repositories
+  - python
+  # - c++
+  - java
+  # - c
+  - c#
+  - javascript
+  # - sql
+  - go
+  # - pascal
+  # - Visual Basic
+  - rust
+  - php
+  - ruby
+  - typescript
+  - swift
+
+# https://hellogithub.com/report/tiobe
+
+# Crawling limits
+created_after: 2019-01-01  # Only include repos created after this date (YYYY-MM-DD)
+timeout: 30              # Request timeout in seconds
+max_retries: 3           # Maximum number of retries for failed requests
+query_nodes: 100          # Maximum number of nodes in the query
+
+# Logging
+log_level: DEBUG          # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+log_file: logs/crawler.log # Log file path
+results_file: results/repos_100_2019.json # Results file path

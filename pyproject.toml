@@ -1,0 +1,5 @@
+[tool.ruff]
+line-length = 200
+select = ["E","F","B","UP"]
+target-version = "py312"
+ignore = ["B904"]

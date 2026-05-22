@@ -1,0 +1,4 @@
+[registry."docker.io"]
+  mirrors = ["https://dockerproxy.net", "https://docker.m.ixdev.cn", "https://image.cloudlayer.icu", "https://docker.1ms.run", "https://docker.1panel.live", "https://docker.xuanyuan.me"]
+[worker.oci]
+maxParallelism = 4
