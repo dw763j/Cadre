@@ -1,4 +1,4 @@
-# Dockerfile Co-Evolution Research Project
+# Cadre: Context-aware drift repair framework
 
 ## Project Overview
 
@@ -37,20 +37,20 @@ Statistical analysis & visualization
 In the paths below, `{out}` denotes the output root directory for the corresponding mode in `whole_download_process.py` (`test_results/` / `results/` / `results_multiple/`). Directories with `_fixed` / `_fixed_params` suffixes are regenerated using corrected parsing logic on top of older artifacts; the dataset currently uses the _fixed versions.
 
 
-| Step | Entry / Function | Input | Output | Description |
-| ------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Crawl repo list | `utils/GitHubCrawler.py`, `utils/MultiLanguageCrawler.py` | GitHub GraphQL API | `results/500+_repos.json` (single mode), `results/crawled_repo_lists/**.json` (multiple mode aggregation) | Filter by Stars, language, creation date per `config/crawler.yaml` |
-| 2. Fetch each repo's workflow list | `parallel_get_workflow_info` | repo URL list | `{out}/workflow_info/<owner>#<repo>#workflows.json` | Mainly to obtain workflow-id and workflow-path |
-| 3. Download workflow yaml | `parallel_download_workflows` | `{out}/workflow_info/` | `{out}/workflows/<owner>#<repo>/<wf>.yml` | Enables local static analysis of yaml files |
-| 4. Pair workflows using docker/build-push-action | `pair_workflow_file_and_id` | `{out}/workflow_info/` + `{out}/workflows/` | `{out}/workflow_id_pair.json` | Per-repo workflow_path ↔ workflow_id mapping; only workflows containing `docker/build-push-action` are kept |
-| 5. Fetch all run records for workflows | `parallel_get_workflow_runs_by_ids` | `{out}/workflow_id_pair.json` | `{out}/workflow_runs/<owner>#<repo>#runs.json` | Includes run_id, head_sha, conclusion, event, etc. |
-| 6. Download detailed run log zip | `detail_workflow_logs_download` | `{out}/workflow_runs/` | `{out}/workflow_logs/<owner>#<repo>#<workflow_id>#<run_id>.zip` | GitHub REST logs API |
-| 7. Unzip detailed logs | `unzip_workflow_detail_logs` | `{out}/workflow_logs/` | `{out}/unzipped_workflow_logs/<owner>#<repo>#<workflow_id>#<run_id>/<N>_<job>.txt` | One txt per job |
-| 8. Filter failed runs | `get_failed_runs` | `{out}/workflow_runs/` + `{out}/unzipped_workflow_logs/` | `{out}/failed_runs.json` | Keep only runs with `conclusion == 'failure'` and existing logs; count failures by `event` |
-| 9. Split failure reason and build params from logs | `split_failure_reason_parallel` | `{out}/failed_runs.json` + `{out}/unzipped_workflow_logs/` | `{out}/failed_job_logs[_fixed_params]/<run_folder>/<run_folder>#<idx>#fail_log.txt` + `...#build_params.json` | Parse `docker buildx build` command line for `build_params` (platform, file, context, build-arg, …) and extract failure snippet |
-| 10. Clone failed repos locally | `utils/RepoCloner.py` (currently commented out in `whole_download_process.py`; enable manually or run separately) | `<owner>#<repo>` from `{out}/failed_job_logs/` | `{out}/cloned_repos/<owner>#<repo>/` | Shallow clone full repo for checkout of failed commit |
-| 11. Compute diff for failed commit | `get_dataset/get_diff.py` (`save_diff_dataset`) | `{out}/cloned_repos/` + `{out}/workflow_runs/` + `{out}/failed_job_logs/` + `{out}/workflow_id_pair.json` | `{out}/failed_job_diffs[_fixed]/<run_folder>.json` | Checkout parent of `head_sha`, diff changed files; also parse all docker/build-push-action params from yaml (including matrix expansion and include/exclude) |
-| 12. Aggregate final dataset | `get_dataset/get_dataset.py` (`get_dataset`) | `failed_job_logs[_fixed_params]/` + `workflow_runs/` + `failed_job_diffs[_fixed]/` + `cloned_repos/` | `{out}/dataset[_multiple]_valid_fixed_params_with_dockerfile.json` | Each failed build gets `head_sha`, `build_params`, `error_log`, `diff_info`, `dockerfile_content`, `big_file`, etc.; builds with large base images like `nvidia/cuda`, `pytorch` are marked `big_file=True` to skip actual builds later |
+| Step                                               | Entry / Function                                                                                                  | Input                                                                                                     | Output                                                                                                        | Description                                                                                                                                                                                                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Crawl repo list                                 | `utils/GitHubCrawler.py`, `utils/MultiLanguageCrawler.py`                                                         | GitHub GraphQL API                                                                                        | `results/500+_repos.json` (single mode), `results/crawled_repo_lists/**.json` (multiple mode aggregation)     | Filter by Stars, language, creation date per `config/crawler.yaml`                                                                                                                                                                      |
+| 2. Fetch each repo's workflow list                 | `parallel_get_workflow_info`                                                                                      | repo URL list                                                                                             | `{out}/workflow_info/<owner>#<repo>#workflows.json`                                                           | Mainly to obtain workflow-id and workflow-path                                                                                                                                                                                          |
+| 3. Download workflow yaml                          | `parallel_download_workflows`                                                                                     | `{out}/workflow_info/`                                                                                    | `{out}/workflows/<owner>#<repo>/<wf>.yml`                                                                     | Enables local static analysis of yaml files                                                                                                                                                                                             |
+| 4. Pair workflows using docker/build-push-action   | `pair_workflow_file_and_id`                                                                                       | `{out}/workflow_info/` + `{out}/workflows/`                                                               | `{out}/workflow_id_pair.json`                                                                                 | Per-repo workflow_path ↔ workflow_id mapping; only workflows containing `docker/build-push-action` are kept                                                                                                                             |
+| 5. Fetch all run records for workflows             | `parallel_get_workflow_runs_by_ids`                                                                               | `{out}/workflow_id_pair.json`                                                                             | `{out}/workflow_runs/<owner>#<repo>#runs.json`                                                                | Includes run_id, head_sha, conclusion, event, etc.                                                                                                                                                                                      |
+| 6. Download detailed run log zip                   | `detail_workflow_logs_download`                                                                                   | `{out}/workflow_runs/`                                                                                    | `{out}/workflow_logs/<owner>#<repo>#<workflow_id>#<run_id>.zip`                                               | GitHub REST logs API                                                                                                                                                                                                                    |
+| 7. Unzip detailed logs                             | `unzip_workflow_detail_logs`                                                                                      | `{out}/workflow_logs/`                                                                                    | `{out}/unzipped_workflow_logs/<owner>#<repo>#<workflow_id>#<run_id>/<N>_<job>.txt`                            | One txt per job                                                                                                                                                                                                                         |
+| 8. Filter failed runs                              | `get_failed_runs`                                                                                                 | `{out}/workflow_runs/` + `{out}/unzipped_workflow_logs/`                                                  | `{out}/failed_runs.json`                                                                                      | Keep only runs with `conclusion == 'failure'` and existing logs; count failures by `event`                                                                                                                                              |
+| 9. Split failure reason and build params from logs | `split_failure_reason_parallel`                                                                                   | `{out}/failed_runs.json` + `{out}/unzipped_workflow_logs/`                                                | `{out}/failed_job_logs[_fixed_params]/<run_folder>/<run_folder>#<idx>#fail_log.txt` + `...#build_params.json` | Parse `docker buildx build` command line for `build_params` (platform, file, context, build-arg, …) and extract failure snippet                                                                                                         |
+| 10. Clone failed repos locally                     | `utils/RepoCloner.py` (currently commented out in `whole_download_process.py`; enable manually or run separately) | `<owner>#<repo>` from `{out}/failed_job_logs/`                                                            | `{out}/cloned_repos/<owner>#<repo>/`                                                                          | Shallow clone full repo for checkout of failed commit                                                                                                                                                                                   |
+| 11. Compute diff for failed commit                 | `get_dataset/get_diff.py` (`save_diff_dataset`)                                                                   | `{out}/cloned_repos/` + `{out}/workflow_runs/` + `{out}/failed_job_logs/` + `{out}/workflow_id_pair.json` | `{out}/failed_job_diffs[_fixed]/<run_folder>.json`                                                            | Checkout parent of `head_sha`, diff changed files; also parse all docker/build-push-action params from yaml (including matrix expansion and include/exclude)                                                                            |
+| 12. Aggregate final dataset                        | `get_dataset/get_dataset.py` (`get_dataset`)                                                                      | `failed_job_logs[_fixed_params]/` + `workflow_runs/` + `failed_job_diffs[_fixed]/` + `cloned_repos/`      | `{out}/dataset[_multiple]_valid_fixed_params_with_dockerfile.json`                                            | Each failed build gets `head_sha`, `build_params`, `error_log`, `diff_info`, `dockerfile_content`, `big_file`, etc.; builds with large base images like `nvidia/cuda`, `pytorch` are marked `big_file=True` to skip actual builds later |
 
 
 > The `_fixed` / `_fixed_params` variants in steps 9 / 11 were regenerated after fixing `parse_docker_build_command` and matrix expansion logic; experiments use the fixed versions.
@@ -143,10 +143,10 @@ From repo to usable build samples, several narrowing steps:
 3. Dockerfile content matching `nvidia/tritonserver`, `nvidia/cuda`, `FROM pytorch`, `install torch`, `tensorflow`, `torchvision`, etc. is marked `big_file=True`; actual `docker build` is skipped later (image too large, build time uncontrolled)
 
 
-| File | Location | Scale | Description |
-| ---------------------------------------------------------- | ------------------- | -------------------- | ------------- |
-| `dataset_valid_fixed_params_with_dockerfile.json` | `results/` | 130 repos / 1,040 builds | Main dataset (~110 MB) |
-| `dataset_multiple_valid_fixed_params_with_dockerfile.json` | `results_multiple/` | 721 repos | Extended dataset |
+| File                                                       | Location            | Scale                    | Description            |
+| ---------------------------------------------------------- | ------------------- | ------------------------ | ---------------------- |
+| `dataset_valid_fixed_params_with_dockerfile.json`          | `results/`          | 130 repos / 1,040 builds | Main dataset (~110 MB) |
+| `dataset_multiple_valid_fixed_params_with_dockerfile.json` | `results_multiple/` | 721 repos                | Extended dataset       |
 
 
 ### Dataset Schema
@@ -185,11 +185,11 @@ From repo to usable build samples, several narrowing steps:
 ### Auxiliary Data (under `{out}/`)
 
 
-| Directory | Contents |
-| ------------------------------- | -------------------------------------------------- |
-| `cloned_repos/` | Cloned Git repos, directory name `owner#repo` |
+| Directory                       | Contents                                                           |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `cloned_repos/`                 | Cloned Git repos, directory name `owner#repo`                      |
 | `failed_job_logs_fixed_params/` | Failure snippets and parsed build params, one subdirectory per run |
-| `failed_job_diffs_fixed/` | Per-run commit diff + docker-build-push-action params |
+| `failed_job_diffs_fixed/`       | Per-run commit diff + docker-build-push-action params              |
 
 
 ---
@@ -211,23 +211,6 @@ results/failed_job_logs_fixed_params/                        # fail_log.txt + bu
 results/cloned_repos/                                        # 135 locally cloned repos
 results/failed_job_diffs_fixed/                              # Diff + docker params for 742 runs
 results/dataset_valid_fixed_params_with_dockerfile.json      # Main dataset: 130 repos / 1,040 builds
-```
-
-multiple mode (`mode='multiple'`, `base_dir='results_multiple'`):
-
-```
-results/crawled_repo_lists/final_results.json                # Aggregated multi-language repo list (input)
-results_multiple/workflow_info/
-results_multiple/workflows/
-results_multiple/workflow_id_pair.json
-results_multiple/workflow_runs/
-results_multiple/workflow_logs/
-results_multiple/unzipped_workflow_logs/
-results_multiple/failed_runs.json
-results_multiple/failed_job_logs_fixed_params/
-results_multiple/cloned_repos/
-results_multiple/failed_job_diffs_fixed/
-results_multiple/dataset_multiple_valid_fixed_params_with_dockerfile.json  # Extended dataset: 721 repos
 ```
 
 Run commands (consistent with script header comments):
@@ -265,11 +248,11 @@ All repair methods consume the same dataset `results/dataset_valid_fixed_params_
 
 #### Patch dockerfile_parse package
 
-<details>
-<summary>Patch dockerfile_parse package</summary>
+Patch dockerfile_parse package
 
 Note: the stock Dockerfile parser rejects files not named Dockerfile. Patch as follows:
 In `.venv/lib/python3.12/site-packages/dockerfile_parse/parser.py`:
+
 ```python
 class DockerfileParser(object):
     def __init__(self, path=None,
@@ -297,11 +280,6 @@ class DockerfileParser(object):
                 self.dockerfile_path = path  # change here
             else:
                 self.dockerfile_path = os.path.join(path, DOCKERFILE_FILENAME)
-```
-
-</details>
-
-```bash
 # method: dofix | pure-llm | parfum; mode: standard | remove_build_channel | remove_key_files (parfum ignores)
 # model: DeepSeek-V3 / gpt-5 etc. (parfum ignores)
 find . -name "*.pyc" -delete && find . -name "__pycache__" -type d -exec rm -rf {} + \
@@ -337,13 +315,13 @@ find . -name "*.pyc" -delete && find . -name "__pycache__" -type d -exec rm -rf 
 **Input / output:**
 
 
-| Data | Path |
-| ------------- | --------------------------------------------------------- |
-| Dataset | `results/dataset_valid_fixed_params_with_dockerfile.json` |
-| Local repos | `results/cloned_repos/<owner>#<repo>/` |
-| Repaired Dockerfiles | `results/fixed_dockerfiles/<method>/<mode>/<model_slug>/` (Parfum: `…/fixed_dockerfiles/parfum/`) |
-| Run logs | `results/repairing_dockerfile/<method>/<mode>/<model_slug>/` (Parfum: `…/repairing_dockerfile/parfum/`) |
-| LLM tokens | `config.LLM_API_KEY` (from `.env.local`) |
+| Data                 | Path                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| Dataset              | `results/dataset_valid_fixed_params_with_dockerfile.json`                                               |
+| Local repos          | `results/cloned_repos/<owner>#<repo>/`                                                                  |
+| Repaired Dockerfiles | `results/fixed_dockerfiles/<method>/<mode>/<model_slug>/` (Parfum: `…/fixed_dockerfiles/parfum/`)       |
+| Run logs             | `results/repairing_dockerfile/<method>/<mode>/<model_slug>/` (Parfum: `…/repairing_dockerfile/parfum/`) |
+| LLM tokens           | `config.LLM_API_KEY` (from `.env.local`)                                                                |
 
 
 ### FlakiDock (baseline)
@@ -382,13 +360,7 @@ find . -name "*.pyc" -delete && find . -name "__pycache__" -type d -exec rm -rf 
     && python -m build_dockerfile.build_fixed_docker
 
 # Specify method and paths (multiple fix_methods allowed; Dockerfiles for each tag must resolve under base_path)
-python -m build_dockerfile.build_fixed_docker \
-    --fix_methods dofix#DeepSeek-V3 pure-llm#DeepSeek-V3 parfum \
-    --method dofix --mode remove_build_channel --model DeepSeek-V3 \
-    --fixed_dockerfile_base_path results/fixed_dockerfiles/dofix/remove_build_channel/DeepSeek-V3 \
-    --output_dir results/fixed_docker_builds/dofix/remove_build_channel/DeepSeek-V3 \
-    --max_workers 4 --prune_every_n_builds 8 \
-    --run_mode build_dockerfile
+python -m build_dockerfile.build_fixed_docker --method dofix --mode standard --model DeepSeek-V3
 
 # All options
 python -m build_dockerfile.build_fixed_docker --help
@@ -397,15 +369,15 @@ python -m build_dockerfile.build_fixed_docker --help
 Common constants from `config/__init__.py`; **repaired Dockerfile / build output roots** are derived from `--method` / `--mode` / `--model` (and Parfum exception) via `results_fixed_dockerfiles_dir` / `results_fixed_docker_builds_dir`; override with `--fixed_dockerfile_base_path` / `--output_dir`.
 
 
-| Variable | Value | Meaning |
-| ---------------------- | --------------------------------------------------------- | -------------------- |
-| `PROJECT_ROOT` | (this repo root) | Auto-resolved in `config/__init__.py` |
-| `MAX_BUILDERS` | 4 | Parallel Docker buildx builders |
-| `REGISTRY_PORT` | 5001 | Local registry port |
-| `DEFAULT_DATASET_PATH` | `results/dataset_valid_fixed_params_with_dockerfile.json` | Dataset |
-| `CLONED_REPOS_DIR` | `results/cloned_repos` | Repo root |
-| Default repaired Dockerfile root | `results/fixed_dockerfiles/<method>/<mode>/<slug>/` (Parfum: two fewer levels) | Same as `build_fixed_docker` |
-| Default build output root | `results/fixed_docker_builds/<method>/<mode>/<slug>/` (Parfum: two fewer levels) | Same as above |
+| Variable                         | Value                                                                            | Meaning                               |
+| -------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------- |
+| `PROJECT_ROOT`                   | (this repo root)                                                                 | Auto-resolved in `config/__init__.py` |
+| `MAX_BUILDERS`                   | 4                                                                                | Parallel Docker buildx builders       |
+| `REGISTRY_PORT`                  | 5001                                                                             | Local registry port                   |
+| `DEFAULT_DATASET_PATH`           | `results/dataset_valid_fixed_params_with_dockerfile.json`                        | Dataset                               |
+| `CLONED_REPOS_DIR`               | `results/cloned_repos`                                                           | Repo root                             |
+| Default repaired Dockerfile root | `results/fixed_dockerfiles/<method>/<mode>/<slug>/` (Parfum: two fewer levels)   | Same as `build_fixed_docker`          |
+| Default build output root        | `results/fixed_docker_builds/<method>/<mode>/<slug>/` (Parfum: two fewer levels) | Same as above                         |
 
 
 `--fix_methods` selects which methods to run (multiple values, space-separated). Current dispatcher supports:
@@ -440,63 +412,24 @@ Summary JSON example:
 
 ---
 
-## Actual Experiment Paths and Artifacts
-
-**Current default layout (new experiments):** under `results/fixed_dockerfiles/`, `results/fixed_docker_builds/`, `results/repairing_dockerfile/` by **method / mode / model_slug**; **Parfum** is only `…/parfum/` (no mode, model subdirs). Coexists with legacy flat dirs (e.g. `fixed_dockerfiles_dofix_standard_*`); analysis scripts support both hierarchical and legacy `fixed_docker_builds_*` single-dir names.
-
-Below are **historical flat naming** examples seen in the repo (counts from `ls | wc -l` at doc time, for migration reference):
-
-
-| Directory | File count | Experiment group | Generated by |
-| ---------------------------------------------------------------- | -------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `fixed_dockerfiles_dofix_remove_build_channel_DeepSeek-V3/` (legacy) | 1035 | DoFix-NoChannel (ablation) | Now `fixed_dockerfiles/dofix/remove_build_channel/DeepSeek-V3/` |
-| `fixed_dockerfiles_one_dir_one_file/` | 977 | Early DoFix main outputs | Now `fixed_dockerfiles/dofix/standard/<model>/` |
-| `fixed_dockerfiles_simple/` | 1026 | Earlier DoFix prototype | Legacy scripts |
-| `fixed_dockerfiles_pure_llm/` (and `_backup`) | 942 | Pure-LLM | Now `fixed_dockerfiles/pure-llm/standard/<model>/` |
-| `fixed_dockerfiles_flakidock_DeepSeek-V3/` | 837 | FlakiDock (DeepSeek-V3) | FlakiDock `modified_main.py` (separate path convention) |
-| `fixed_dockerfiles_flakidock_upgrade_response_deal_DeepSeek-V3/` | 908 | FlakiDock (response parsing fix) | Same |
-| `fixed_dockerfiles_flakidock_nodiff/` | 787 | FlakiDock no-diff ablation | FlakiDock variant |
-| Corresponding `fixed_docker_builds_*` / hierarchical `fixed_docker_builds/...` | — | From `build_fixed_docker.py` | See previous section |
-| `fixed_docker_builds_parfum/` (legacy) or `fixed_docker_builds/parfum/` | — | Parfum | `build_fixed_docker.py` + `fix_methods` includes `parfum` |
-| `fixed_docker_builds_flakidock_gpt_4/` | — | FlakiDock (GPT-4) | `build_fixed_docker.py --fix_methods flakidock#gpt-4` |
-| `repairing_dockerfile_pure-llm_DeepSeek-V3_tokens/` | token stats only | Pure-LLM token usage | `standard_fix_process.py` (pure-llm currently `continue` before `call_model`, token count only) |
-| `repairing_dockerfile_pure_llm_with_dockerfile/` | actual Pure-LLM responses | Pure-LLM repair logs | Early full script |
-
-
-> Note: new runs of `standard_fix_process` / `build_fixed_docker` use hierarchical paths by default; to align with old papers/scripts, migrate dirs or point `--fixed-dockerfile-base-path` / `--output-dir` at legacy locations.
-
----
-
 ## Experiment Group Comparison
 
 
-| Experiment group | method × mode | Model | Description |
-| -------------------- | ---------------------------- | ------------------- | ----------------------------------- |
-| **DoFix** (full) | dofix × standard | DeepSeek-V3 | Main method: BuildChannelAnalyzer + key-file selection |
-| **DoFix-NoChannel** | dofix × remove_build_channel | DeepSeek-V3 | Ablation: remove BuildChannelAnalyzer |
-| **DoFix-NoKeyFiles** | dofix × remove_key_files | DeepSeek-V3 | Ablation: remove key-file selection step |
-| **Pure-LLM** | pure-llm × standard | DeepSeek-V3 | Ablation: no build-dependency analysis, no key-file selection |
-| **FlakiDock** | flakidock (separate entry) | GPT-4 / DeepSeek-V3 | Existing tool baseline |
-| **Parfum** | parfum | None (dir has no mode/model) | Rule-based baseline |
+| Experiment group     | method × mode                | Model                        | Description                                                   |
+| -------------------- | ---------------------------- | ---------------------------- | ------------------------------------------------------------- |
+| **DoFix** (full)     | dofix × standard             | DeepSeek-V3                  | Main method: BuildChannelAnalyzer + key-file selection        |
+| **DoFix-NoChannel**  | dofix × remove_build_channel | DeepSeek-V3                  | Ablation: remove BuildChannelAnalyzer                         |
+| **DoFix-NoKeyFiles** | dofix × remove_key_files     | DeepSeek-V3                  | Ablation: remove key-file selection step                      |
+| **Pure-LLM**         | pure-llm × standard          | DeepSeek-V3                  | Ablation: no build-dependency analysis, no key-file selection |
+| **FlakiDock**        | flakidock (separate entry)   | GPT-4 / DeepSeek-V3          | Existing tool baseline                                        |
+| **Parfum**           | parfum                       | None (dir has no mode/model) | Rule-based baseline                                           |
 
-
-**Latest build validation summary:**
-
-
-| Method | Total builds | Success | Failed | Success rate |
-| ----------------------------- | --------- | --- | ------ | ------ |
-| DoFix-NoChannel (DeepSeek-V3) | 660 | 203 | 421+36 | ~30.8% |
-| FlakiDock (GPT-4) | 2,855 | 67 | 957 | ~2.3% |
-| Parfum | 992 | 69 | 904 | ~7.0% |
-
-
-> Full DoFix (standard + DeepSeek-V3) latest summary: see `results/fixed_docker_build_summary_<timestamp>.json` under the corresponding build output dir (e.g. `results/fixed_docker_builds/dofix/standard/DeepSeek-V3/results/…`).
 
 ---
 
 ## Full Experiment Run Order
 
-Example: **DoFix-NoChannel (DeepSeek-V3)** from scratch to build validation:
+Example: **DoFix (DeepSeek-V3)** from scratch to build validation:
 
 ```bash
 # 0. Prepare .env.local (LLM_API_KEY / GITHUB_TOKENS)
@@ -520,11 +453,7 @@ find . -name "*.pyc" -delete && find . -name "__pycache__" -type d -exec rm -rf 
 ./setup_docker_builders.sh
 #    Default paths from --method / --mode / --model; or explicit paths below
 find . -name "*.pyc" -delete && find . -name "__pycache__" -type d -exec rm -rf {} + \
-    && python -m build_dockerfile.build_fixed_docker \
-        --fix_methods dofix#DeepSeek-V3 \
-        --method dofix --mode remove_build_channel --model DeepSeek-V3 \
-        --fixed_dockerfile_base_path results/fixed_dockerfiles/dofix/remove_build_channel/DeepSeek-V3 \
-        --output_dir results/fixed_docker_builds/dofix/remove_build_channel/DeepSeek-V3
+    && python -m build_dockerfile.build_fixed_docker --method dofix --mode standard --model DeepSeek-V3
 ./teardown_docker_builders.sh  # cleanup after run
 
 # 5. Metrics and visualization (see next section)
@@ -543,7 +472,7 @@ Parfum / Pure-LLM: step 3 with different `method`, then step 4 for builds. Flaki
 - Env vars (auto-loaded from `.env.local`): `GITHUB_TOKENS`, `LLM_API_KEY` / `LLM_API_BASE` / `LLM_MODEL`, optional `GITHUB_PROXY`, optional `LEGACY_ABSOLUTE_ROOTS` (comma-separated, for migrating old dataset paths)
 - Helpers: `env_get`, `env_get_list`, `resolve_path`, `init_dir`
 
-**`.env.local` template:** copy from `.env.example`, then edit:
+`**.env.local` template:** copy from `.env.example`, then edit:
 
 ```bash
 GITHUB_TOKENS=ghp_xxx,ghp_yyy        # comma-separated, multiple tokens for rotation
@@ -584,11 +513,11 @@ python -m methods.analysis.classify_failures \
 ### Success rate comparison and plots (`analyze_results/`)
 
 
-| Script | Input | Output | Purpose |
-| --------------------------------------- | ---------------------------------------------- | --------------------------------------------- | -------------------------- |
-| `analyze_results/comparable_results.py` | Multiple `…/fixed_docker_builds/.../run_logs/` (or legacy flat `run_logs/`) | Dict (used by upset_plot.py) | Cross-tool comparison on same build set with one tool as reference |
-| `analyze_results/upset_plot.py` | Output above | `plots/venn_*.pdf` + `plots/upset_plot_*.pdf` | UpSet / Venn plots of per-method success set overlap |
-| `analyze_results/cluster_results.py` | `results/failed_job_clusters/` + each `run_logs/` | `plots/cluster_success_by_position.pdf` | Success rate bucketed by build position in failure cluster |
+| Script                                  | Input                                                                       | Output                                        | Purpose                                                            |
+| --------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------ |
+| `analyze_results/comparable_results.py` | Multiple `…/fixed_docker_builds/.../run_logs/` (or legacy flat `run_logs/`) | Dict (used by upset_plot.py)                  | Cross-tool comparison on same build set with one tool as reference |
+| `analyze_results/upset_plot.py`         | Output above                                                                | `plots/venn_*.pdf` + `plots/upset_plot_*.pdf` | UpSet / Venn plots of per-method success set overlap               |
+| `analyze_results/cluster_results.py`    | `results/failed_job_clusters/` + each `run_logs/`                           | `plots/cluster_success_by_position.pdf`       | Success rate bucketed by build position in failure cluster         |
 
 
 > `cluster_results.py` infers tool id from `run_logs` under hierarchical layout: `{method}_{mode}_{slug}` (Parfum: `parfum`); default `SELECTED_TOOLS` matches. For legacy flat dirs or custom FlakiDock paths, use `--tool_run_log_roots` / `--selected_tools`. `upset_plot.py` default mapping is similar; use `--result_paths NAME=PATH` if different. PDFs default to `plots/`.
