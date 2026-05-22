@@ -1,0 +1,37 @@
+# Cursor specific ignore file
+# Large data directories
+results/
+results_multiple/
+logs/
+__pycache__/
+
+# Large files
+*.zip
+*.log
+*.json
+*.tar.gz
+*.tar.bz2
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
